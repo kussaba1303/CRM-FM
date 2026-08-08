@@ -255,6 +255,74 @@
         <div class="field"><label>Fecha próxima acción</label><input type="date" id="f-fecha" /></div>
       </div>
       <div class="field"><label>Notas de seguimiento</label><textarea id="f-notas" placeholder="Historial de conversación, acuerdos, pendientes..."></textarea></div>
+
+      <div class="field"><label>Ejecutivo responsable</label>
+        <select id="f-ejecutivo" onchange="toggleEjecutivoOtro(this.value)">
+          <option value="">— Sin asignar —</option>
+          <option value="Samir Kussaba">Samir Kussaba</option>
+          <option value="David Alejandre">David Alejandre</option>
+          <option value="Cristina Olvino">Cristina Olvino</option>
+          <option value="Olga Gonzalez">Olga Gonzalez</option>
+          <option value="__otro__">Otro...</option>
+        </select>
+        <input type="text" id="f-ejecutivo-otro" placeholder="Nombre del ejecutivo" style="margin-top:8px;display:none;" />
+      </div>
+
+      <div class="field"><label>Licenciado a asignar</label>
+        <select id="f-licenciado" onchange="toggleLicenciadoOtro(this.value)">
+          <option value="">— Por definir —</option>
+          <option value="Cesar Pizano - 4763">Cesar Pizano - 4763</option>
+          <option value="Edgar Gutierrez - 4939">Edgar Gutierrez - 4939</option>
+          <option value="Patricio Ortiz - 4845">Patricio Ortiz - 4845</option>
+          <option value="Niza / Alexa - 4777">Niza / Alexa - 4777</option>
+          <option value="Total Conect - 4861">Total Conect - 4861</option>
+          <option value="Julissa / Jorge Ubillo - 4923">Julissa / Jorge Ubillo - 4923</option>
+          <option value="Odette Diguero Mamá - 4934">Odette Diguero Mamá - 4934</option>
+          <option value="Anny Vasquez - 5258">Anny Vasquez - 5258</option>
+          <option value="Laura Gomez - 5252">Laura Gomez - 5252</option>
+          <option value="Alejandro Ríos - 5274">Alejandro Ríos - 5274</option>
+          <option value="Elizabeth - 5266">Elizabeth - 5266</option>
+          <option value="Jéssica Trujillo - 5226">Jéssica Trujillo - 5226</option>
+          <option value="Cynthia Carrizales - 5227">Cynthia Carrizales - 5227</option>
+          <option value="__otro__">Nuevo licenciado...</option>
+        </select>
+        <input type="text" id="f-licenciado-otro" placeholder="Nombre del nuevo licenciado" style="margin-top:8px;display:none;" />
+      </div>
+
+      <div class="field"><label id="f-colaboradores-label">Número de colaboradores</label>
+        <input type="number" id="f-colaboradores" min="0" placeholder="Ej. 200" />
+      </div>
+
+      <div class="field"><label>Compromisos con el inmueble</label>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;min-width:160px;"><input type="checkbox" value="Cobro de renta" class="f-compromiso"> Cobro de renta</label>
+            <input type="text" class="f-compromiso-monto" data-for="Cobro de renta" placeholder="Monto o N/A" style="flex:1;" />
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;min-width:160px;"><input type="checkbox" value="Cobro de energía" class="f-compromiso"> Cobro de energía</label>
+            <input type="text" class="f-compromiso-monto" data-for="Cobro de energía" placeholder="Monto o N/A" style="flex:1;" />
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;min-width:160px;"><input type="checkbox" value="Revenue share" class="f-compromiso"> Revenue share</label>
+            <input type="text" class="f-compromiso-monto" data-for="Revenue share" placeholder="% o N/A" style="flex:1;" />
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;min-width:160px;"><input type="checkbox" value="Equipos en comodato" class="f-compromiso"> Equipos en comodato</label>
+            <input type="text" class="f-compromiso-monto" data-for="Equipos en comodato" placeholder="Monto o N/A" style="flex:1;" />
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;">
+            <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;min-width:160px;"><input type="checkbox" value="Ninguno" class="f-compromiso"> Ninguno</label>
+          </div>
+
+        </div>
+        <input type="text" id="f-compromisos-otros" placeholder="Otros compromisos (descripción libre)..." style="margin-top:10px;" />
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn-delete" id="btnDelete" style="display:none;">Eliminar</button>
         <div style="display:flex; gap:8px; margin-left:auto;">
@@ -481,9 +549,40 @@ function cardHTML(p){
       <span class="brand-pill ${p.marca}">${p.marca==='mx'?'MX':'ES'}</span>
     </div>
     <div class="card-meta">${escapeHtml(p.contacto||'—')}${p.ciudad?' · '+escapeHtml(p.ciudad):''}</div>
-    <div class="card-tipo">${escapeHtml(p.tipo||'')}</div>
+    <div class="card-tipo">${escapeHtml(p.tipo||'')}${p.colaboradores?' · '+p.colaboradores+(p.tipo==='Residencial'?' depts':' colab.'):''}</div>
+    ${p.ejecutivo?`<div style="font-size:11px;color:var(--dim);margin-top:3px;">${escapeHtml(p.ejecutivo)}</div>`:''}
+    ${p.licenciado?`<div style="font-size:11px;color:var(--teal-text);margin-top:2px;">${escapeHtml(p.licenciado)}</div>`:''}
+    ${(p.compromisos&&p.compromisos.length)?`<div style="font-size:10px;color:var(--lime);margin-top:3px;">${p.compromisos.join(', ')}</div>`:''}
     ${p.accion?`<div class="card-action ${actionClass}"><span>${escapeHtml(p.accion)}</span>${fechaLbl?`<span class="mono">${fechaLbl}</span>`:''}</div>`:''}
   </div>`;
+}
+
+document.getElementById('f-tipo').addEventListener('change', function(){
+  const lbl = document.getElementById('f-colaboradores-label');
+  lbl.textContent = this.value === 'Residencial' ? 'Número de departamentos' : 'Número de colaboradores';
+});
+
+function toggleEjecutivoOtro(val){
+  document.getElementById('f-ejecutivo-otro').style.display = val === '__otro__' ? '' : 'none';
+}
+function toggleLicenciadoOtro(val){
+  document.getElementById('f-licenciado-otro').style.display = val === '__otro__' ? '' : 'none';
+}
+function getEjecutivo(){
+  const sel = document.getElementById('f-ejecutivo').value;
+  return sel === '__otro__' ? document.getElementById('f-ejecutivo-otro').value.trim() : sel;
+}
+function getLicenciado(){
+  const sel = document.getElementById('f-licenciado').value;
+  return sel === '__otro__' ? document.getElementById('f-licenciado-otro').value.trim() : sel;
+}
+function getCompromisos(){
+  const result = [];
+  document.querySelectorAll('.f-compromiso:checked').forEach(cb=>{
+    const monto = document.querySelector(`.f-compromiso-monto[data-for="${cb.value}"]`);
+    result.push({ tipo: cb.value, monto: monto ? monto.value.trim() : '' });
+  });
+  return result;
 }
 
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -546,6 +645,32 @@ function openModal(id){
     document.getElementById('f-accion').value = p.accion||'';
     document.getElementById('f-fecha').value = parseFecha(p.fecha) || '';
     document.getElementById('f-notas').value = p.notas||'';
+    const ejVal = p.ejecutivo||'';
+    const ejOpts = ['Samir Kussaba','David Alejandre','Cristina Olvino','Olga Gonzalez',''];
+    if(ejOpts.includes(ejVal)){ document.getElementById('f-ejecutivo').value = ejVal; document.getElementById('f-ejecutivo-otro').style.display='none'; }
+    else if(ejVal){ document.getElementById('f-ejecutivo').value='__otro__'; document.getElementById('f-ejecutivo-otro').value=ejVal; document.getElementById('f-ejecutivo-otro').style.display=''; }
+    else { document.getElementById('f-ejecutivo').value=''; document.getElementById('f-ejecutivo-otro').style.display='none'; }
+
+    const licVal = p.licenciado||'';
+    const licOpts = document.querySelectorAll('#f-licenciado option');
+    const licExists = [...licOpts].some(o=>o.value===licVal && o.value!=='__otro__');
+    if(licExists){ document.getElementById('f-licenciado').value=licVal; document.getElementById('f-licenciado-otro').style.display='none'; }
+    else if(licVal){ document.getElementById('f-licenciado').value='__otro__'; document.getElementById('f-licenciado-otro').value=licVal; document.getElementById('f-licenciado-otro').style.display=''; }
+    else { document.getElementById('f-licenciado').value=''; document.getElementById('f-licenciado-otro').style.display='none'; }
+
+    document.getElementById('f-colaboradores').value = p.colaboradores||'';
+    document.getElementById('f-colaboradores-label').textContent = (p.tipo==='Residencial') ? 'Número de departamentos' : 'Número de colaboradores';
+    document.getElementById('f-compromisos-otros').value = p.compromisosOtros||'';
+    document.querySelectorAll('.f-compromiso').forEach(cb=>{ cb.checked = false; });
+    document.querySelectorAll('.f-compromiso-monto').forEach(inp=>{ inp.value=''; });
+    (p.compromisos||[]).forEach(c=>{
+      const tipo = typeof c==='object'?c.tipo:c;
+      const monto = typeof c==='object'?c.monto:'';
+      const cb = document.querySelector(`.f-compromiso[value="${tipo}"]`);
+      if(cb) cb.checked=true;
+      const inp = document.querySelector(`.f-compromiso-monto[data-for="${tipo}"]`);
+      if(inp) inp.value=monto;
+    });
   }else{
     document.getElementById('modalTitle').textContent = 'Nuevo prospecto';
     document.getElementById('btnDelete').style.display = 'none';
@@ -575,6 +700,11 @@ document.getElementById('prospectForm').addEventListener('submit', async e=>{
     accion: document.getElementById('f-accion').value.trim(),
     fecha: document.getElementById('f-fecha').value,
     notas: document.getElementById('f-notas').value.trim(),
+    ejecutivo: getEjecutivo(),
+    licenciado: getLicenciado(),
+    colaboradores: document.getElementById('f-colaboradores').value ? Number(document.getElementById('f-colaboradores').value) : null,
+    compromisos: getCompromisos(),
+    compromisosOtros: document.getElementById('f-compromisos-otros').value.trim(),
   };
   const snapshot = JSON.parse(JSON.stringify(prospectos));
   if(editingId){
