@@ -266,7 +266,7 @@
   </div>
 </div>
 
-<script>
+<script type="module">
 const STAGES = ['prospecto','contactado','propuesta','cerrado'];
 let prospectos = [];
 let activeBrand = 'all';
@@ -287,67 +287,79 @@ function setSync(state){
    CONFIGURACIÓN — pega aquí la URL de tu aplicación web de Apps Script
    (termina en /exec). Ver instrucciones en el chat con Mutante.
    ============================================================ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxqaVlmMlQA5OqDNucSEobKBNjUjXIfj48WUmm-_P5hMmrR0wCezNo_mNmFFTUMcT-J/exec';
+const API_URL = ''; // Migrado a Firebase
+
+/* ===== FIREBASE CONFIG ===== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc, setDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBdMelZxYN2PebOdvKyJIqSuPYiHWSLTuE",
+  authDomain: "fastmarket-crm.firebaseapp.com",
+  projectId: "fastmarket-crm",
+  storageBucket: "fastmarket-crm.firebasestorage.app",
+  messagingSenderId: "714683172567",
+  appId: "1:714683172567:web:c9ab9dd3406d087c679292"
+};
+
+const fbApp  = initializeApp(firebaseConfig);
+const db     = getFirestore(fbApp);
+const COLL   = collection(db, 'prospectos');
+
+function isDemoMode(){ return false; }
+
+async function apiGet(){
+  const snap = await getDocs(COLL);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function apiPost({ action, data, id }){
+  if(action === 'save'){
+    const toSave = data.map ? data : [data];
+    // upsert all
+    for(const p of toSave){
+      const { id: pid, ...fields } = p;
+      if(pid){
+        await setDoc(doc(db, 'prospectos', pid), { ...fields, updatedAt: serverTimestamp() }, { merge: true });
+      } else {
+        await addDoc(COLL, { ...fields, createdAt: serverTimestamp() });
+      }
+    }
+  } else if(action === 'delete'){
+    await deleteDoc(doc(db, 'prospectos', id));
+  }
+  return await apiGet();
+}
+
+// Escucha cambios en tiempo real
+function startRealtime(){
+  onSnapshot(COLL, snap => {
+    prospectos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+}
 
 let loadOk = false;
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-function configMissing(){
-  return !API_URL || API_URL.indexOf('PEGA_AQUI') === 0;
-}
-
-async function apiGet(){
-  const res = await fetch(API_URL, { method:'GET' });
-  const json = await res.json();
-  if(!json.ok) throw new Error(json.error || 'Respuesta no válida del servidor');
-  return json.data;
-}
-
-async function apiPost(payload){
-  const res = await fetch(API_URL, {
-    method:'POST',
-    // text/plain evita que el navegador mande una solicitud de "preflight"
-    // que Apps Script no responde correctamente.
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload)
-  });
-  const json = await res.json();
-  if(!json.ok) throw new Error(json.error || 'Respuesta no válida del servidor');
-  return json.data;
-}
+function configMissing(){ return false; }
 
 async function loadData(){
   document.getElementById('loadError').style.display = 'none';
   document.getElementById('appBody').style.display = 'none';
   document.getElementById('loadingMsg').style.display = 'block';
 
-  if(configMissing()){
-    loadOk = false;
+  try{
+    prospectos = await apiGet();
+    loadOk = true;
     document.getElementById('loadingMsg').style.display = 'none';
-    document.getElementById('loadError').style.display = 'flex';
-    document.getElementById('loadErrorDetail').textContent = 'Falta configurar API_URL en el archivo (línea cerca del inicio del <script>). Pide a Mutante la URL de tu Apps Script si no la tienes.';
-    setSync('error');
-    return;
-  }
-
-  let lastErr = null;
-  for(let attempt=1; attempt<=3; attempt++){
-    try{
-      prospectos = await apiGet();
-      loadOk = true;
-      document.getElementById('loadingMsg').style.display = 'none';
-      document.getElementById('appBody').style.display = '';
-      setSync('ok');
-      render();
-      return;
-    }catch(e){
-      lastErr = e;
-      console.error('CRM loadData attempt '+attempt+' failed:', e);
-      if(attempt<3) await sleep(700*attempt);
-    }
-  }
-  loadOk = false;
+    document.getElementById('appBody').style.display = '';
+    setSync('ok');
+    render();
+    startRealtime();
+  } catch(e){
+    loadOk = false;
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('loadError').style.display = 'flex';
   document.getElementById('loadErrorDetail').textContent = lastErr ? ('Detalle: ' + (lastErr.message || String(lastErr))) : '';
