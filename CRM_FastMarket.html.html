@@ -84,7 +84,7 @@
 
   /* ---------- board ---------- */
   .board{
-    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px;
+    display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px;
     padding:0 24px 40px; align-items:start;
   }
   .col{background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); min-height:200px; display:flex; flex-direction:column;}
@@ -98,6 +98,8 @@
   .col[data-stage="contactado"] .col-dot{background:var(--teal-text);}
   .col[data-stage="propuesta"] .col-dot{background:var(--lime);}
   .col[data-stage="cerrado"] .col-dot{background:var(--cilantro-text);}
+  .col[data-stage="operando"] .col-dot{background:#4fc3f7;}
+  .juridico-badge{display:inline-block;background:var(--overdue);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-top:3px;letter-spacing:.5px;}
   .col-count{font-size:11px; color:var(--dim); font-family:'IBM Plex Mono',monospace;}
   .col-body{padding:10px; display:flex; flex-direction:column; gap:8px; flex:1; min-height:60px;}
   .col-body.dragover{background:var(--bg-hover);}
@@ -156,7 +158,8 @@
   .btn-save{background:var(--teal); border:none; color:var(--gray); padding:9px 20px; border-radius:7px; font-size:13px; font-weight:600; cursor:pointer;}
   .btn-cancel{background:none; border:1px solid var(--border2); color:var(--dim); padding:9px 16px; border-radius:7px; font-size:13px; cursor:pointer;}
 
-  @media (max-width:900px){ .board{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:1100px){ .board{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:700px){ .board{grid-template-columns:repeat(2,1fr);} }
   @media (max-width:560px){ .board{grid-template-columns:1fr;} .toolbar{flex-direction:column; align-items:stretch;} .search-input{max-width:none;} }
 </style>
 </head>
@@ -217,6 +220,10 @@
       <option value="Ninguno">Sin compromisos</option>
     </select>
 
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;">
+      <input type="checkbox" id="filtroJuridico" style="accent-color:var(--overdue);cursor:pointer;" />
+      <span style="color:var(--overdue);">⚠</span> Pendiente jurídico
+    </label>
     <button id="filtroClear" style="font-family:inherit;font-size:12px;background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;display:none;">✕ Limpiar filtros</button>
   </div>
   <div class="spacer"></div>
@@ -253,6 +260,10 @@
     <div class="col-head"><div class="col-title"><span class="col-dot"></span>Cerrado</div><div class="col-count mono" id="count-cerrado">0</div></div>
     <div class="col-body" id="body-cerrado"></div>
   </div>
+  <div class="col" data-stage="operando">
+    <div class="col-head"><div class="col-title"><span class="col-dot"></span>Operando</div><div class="col-count mono" id="count-operando">0</div></div>
+    <div class="col-body" id="body-operando"></div>
+  </div>
 </div>
 </div>
 
@@ -286,12 +297,17 @@
       <div class="field"><label>Etapa</label>
         <select id="f-etapa">
           <option value="prospecto">Prospecto</option><option value="contactado">Contactado</option>
-          <option value="propuesta">Propuesta</option><option value="cerrado">Cerrado</option>
+          <option value="propuesta">Propuesta</option><option value="cerrado">Cerrado</option><option value="operando">Operando</option>
         </select>
       </div>
       <div class="row2">
         <div class="field"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Ej. Llamar, enviar propuesta..." /></div>
         <div class="field"><label>Fecha próxima acción</label><input type="date" id="f-fecha" /></div>
+        <div class="field"><label>Fecha de inauguración</label><input type="date" id="f-inaug" /></div>
+        <div class="field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="f-juridico" style="width:16px;height:16px;cursor:pointer;accent-color:var(--overdue);" />
+          <label for="f-juridico" style="cursor:pointer;margin:0;font-weight:400;">Pendiente jurídico <span style="color:var(--overdue);font-size:11px;">(Josefina)</span></label>
+        </div>
       </div>
       <div class="field"><label>Notas de seguimiento</label><textarea id="f-notas" placeholder="Historial de conversación, acuerdos, pendientes..."></textarea></div>
 
@@ -323,6 +339,8 @@
           <option value="Elizabeth - 5266">Elizabeth - 5266</option>
           <option value="Jéssica Trujillo - 5226">Jéssica Trujillo - 5226</option>
           <option value="Cynthia Carrizales - 5227">Cynthia Carrizales - 5227</option>
+          <option value="Mauricio Hernandez">Mauricio Hernandez</option>
+          <option value="Eric Olague">Eric Olague</option>
           <option value="__otro__">Nuevo licenciado...</option>
         </select>
         <input type="text" id="f-licenciado-otro" placeholder="Nombre del nuevo licenciado" style="margin-top:8px;display:none;" />
@@ -376,7 +394,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
-const STAGES = ['prospecto','contactado','propuesta','cerrado'];
+const STAGES = ['prospecto','contactado','propuesta','cerrado','operando'];
 let prospectos = [];
 let activeBrand = 'all';
 let filtroEjecutivo = '', filtroFecha = '', filtroTipo = '', filtroCompromiso = '';
@@ -559,6 +577,7 @@ function filtered(){
     }
     if(filtroEjecutivo && p.ejecutivo !== filtroEjecutivo) return false;
     if(filtroTipo && p.tipo !== filtroTipo) return false;
+    if(document.getElementById('filtroJuridico')?.checked && p.juridico!==true && p.juridico!=='true') return false;
     if(filtroCompromiso){
       const comps = (p.compromisos||[]).map(c=>typeof c==='object'?c.tipo:c);
       if(!comps.includes(filtroCompromiso)) return false;
@@ -566,7 +585,7 @@ function filtered(){
     if(filtroFecha){
       if(filtroFecha==='hoy')       return isToday(p.fecha);
       if(filtroFecha==='semana')    return isThisWeek(p.fecha);
-      if(filtroFecha==='vencidas')  return p.etapa!=='cerrado' && daysUntil(p.fecha)!==null && daysUntil(p.fecha)<0;
+      if(filtroFecha==='vencidas')  return p.etapa!=='cerrado' && p.etapa!=='operando' && daysUntil(p.fecha)!==null && daysUntil(p.fecha)<0;
       if(filtroFecha==='sin-fecha') return !p.fecha;
     }
     return true;
@@ -576,7 +595,7 @@ function filtered(){
 function renderStats(){
   const list = filtered();
   const total = list.length;
-  const overdue = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d<0 && p.etapa!=='cerrado'; }).length;
+  const overdue = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d<0 && p.etapa!=='cerrado' && p.etapa!=='operando'; }).length;
   const soon = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d>=0 && d<=3 && p.etapa!=='cerrado'; }).length;
   const cerrados = list.filter(p=>p.etapa==='cerrado').length;
   document.getElementById('statsBar').innerHTML = `
@@ -626,7 +645,9 @@ function cardHTML(p){
     <div class="card-tipo">${escapeHtml(p.tipo||'')}${p.colaboradores?' · '+p.colaboradores+(p.tipo==='Residencial'?' depts':' colab.'):''}</div>
     ${p.ejecutivo?`<div style="font-size:11px;color:var(--dim);margin-top:3px;">${escapeHtml(p.ejecutivo)}</div>`:''}
     ${p.licenciado?`<div style="font-size:11px;color:var(--teal-text);margin-top:2px;">${escapeHtml(p.licenciado)}</div>`:''}
-    ${(p.compromisos&&p.compromisos.length)?`<div style="font-size:10px;color:var(--lime);margin-top:3px;">${p.compromisos.join(', ')}</div>`:''}
+    ${(p.compromisos&&p.compromisos.length)?`<div style="font-size:10px;color:var(--lime);margin-top:3px;">${p.compromisos.map(c=>typeof c==='object'?c.tipo:c).join(', ')}</div>`:''}
+    ${(p.juridico===true||p.juridico==='true')?`<span class="juridico-badge">&#9888; Jurídico pendiente</span>`:''}
+    ${p.inaug?`<div style="font-size:10px;color:var(--teal-text);margin-top:3px;">Inauguración: ${p.inaug}</div>`:''}
     ${p.accion?`<div class="card-action ${actionClass}"><span>${escapeHtml(p.accion)}</span>${fechaLbl?`<span class="mono">${fechaLbl}</span>`:''}</div>`:''}
   </div>`;
 }
@@ -719,6 +740,8 @@ function openModal(id){
     document.getElementById('f-accion').value = p.accion||'';
     document.getElementById('f-fecha').value = parseFecha(p.fecha) || '';
     document.getElementById('f-notas').value = p.notas||'';
+    document.getElementById('f-inaug').value = parseFecha(p.inaug)||'';
+    document.getElementById('f-juridico').checked = p.juridico||false;
     const ejVal = p.ejecutivo||'';
     const ejOpts = ['Samir Kussaba','David Alejandre','Cristina Olvino','Olga Gonzalez',''];
     if(ejOpts.includes(ejVal)){ document.getElementById('f-ejecutivo').value = ejVal; document.getElementById('f-ejecutivo-otro').style.display='none'; }
@@ -774,6 +797,8 @@ document.getElementById('prospectForm').addEventListener('submit', async e=>{
     accion: document.getElementById('f-accion').value.trim(),
     fecha: document.getElementById('f-fecha').value,
     notas: document.getElementById('f-notas').value.trim(),
+    inaug: document.getElementById('f-inaug').value||null,
+    juridico: document.getElementById('f-juridico').checked,
     ejecutivo: getEjecutivo(),
     licenciado: getLicenciado(),
     colaboradores: document.getElementById('f-colaboradores').value ? Number(document.getElementById('f-colaboradores').value) : null,
@@ -814,6 +839,7 @@ document.getElementById('btnDelete').addEventListener('click', async ()=>{
   closeModal();
 });
 
+document.getElementById('filtroJuridico').addEventListener('change', ()=>{ render(); });
 document.getElementById('filtroEjecutivo').addEventListener('change', e=>{ filtroEjecutivo=e.target.value; render(); });
 document.getElementById('filtroFecha').addEventListener('change', e=>{ filtroFecha=e.target.value; render(); });
 document.getElementById('filtroTipo').addEventListener('change', e=>{ filtroTipo=e.target.value; render(); });
@@ -824,6 +850,7 @@ document.getElementById('filtroClear').addEventListener('click', ()=>{
   document.getElementById('filtroFecha').value='';
   document.getElementById('filtroTipo').value='';
   document.getElementById('filtroCompromiso').value='';
+  document.getElementById('filtroJuridico').checked=false;
   document.getElementById('searchInput').value='';
   render();
 });
