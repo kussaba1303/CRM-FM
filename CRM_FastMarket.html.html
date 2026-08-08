@@ -266,7 +266,9 @@
   </div>
 </div>
 
-<script type="module">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
 const STAGES = ['prospecto','contactado','propuesta','cerrado'];
 let prospectos = [];
 let activeBrand = 'all';
@@ -287,12 +289,6 @@ function setSync(state){
    CONFIGURACIÓN — pega aquí la URL de tu aplicación web de Apps Script
    (termina en /exec). Ver instrucciones en el chat con Mutante.
    ============================================================ */
-const API_URL = ''; // Migrado a Firebase
-
-/* ===== FIREBASE CONFIG ===== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc, setDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyBdMelZxYN2PebOdvKyJIqSuPYiHWSLTuE",
   authDomain: "fastmarket-crm.firebaseapp.com",
@@ -302,38 +298,36 @@ const firebaseConfig = {
   appId: "1:714683172567:web:c9ab9dd3406d087c679292"
 };
 
-const fbApp  = initializeApp(firebaseConfig);
-const db     = getFirestore(fbApp);
-const COLL   = collection(db, 'prospectos');
+firebase.initializeApp(firebaseConfig);
+const db   = firebase.firestore();
+const COLL = db.collection('prospectos');
 
 function isDemoMode(){ return false; }
 
 async function apiGet(){
-  const snap = await getDocs(COLL);
+  const snap = await COLL.get();
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 async function apiPost({ action, data, id }){
   if(action === 'save'){
-    const toSave = data.map ? data : [data];
-    // upsert all
-    for(const p of toSave){
+    const items = Array.isArray(data) ? data : [data];
+    for(const p of items){
       const { id: pid, ...fields } = p;
       if(pid){
-        await setDoc(doc(db, 'prospectos', pid), { ...fields, updatedAt: serverTimestamp() }, { merge: true });
+        await COLL.doc(pid).set(fields, { merge: true });
       } else {
-        await addDoc(COLL, { ...fields, createdAt: serverTimestamp() });
+        await COLL.add({ ...fields, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
       }
     }
   } else if(action === 'delete'){
-    await deleteDoc(doc(db, 'prospectos', id));
+    await COLL.doc(id).delete();
   }
   return await apiGet();
 }
 
-// Escucha cambios en tiempo real
 function startRealtime(){
-  onSnapshot(COLL, snap => {
+  COLL.onSnapshot(snap => {
     prospectos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   });
@@ -360,10 +354,11 @@ async function loadData(){
     startRealtime();
   } catch(e){
     loadOk = false;
-  document.getElementById('loadingMsg').style.display = 'none';
-  document.getElementById('loadError').style.display = 'flex';
-  document.getElementById('loadErrorDetail').textContent = lastErr ? ('Detalle: ' + (lastErr.message || String(lastErr))) : '';
-  setSync('error');
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('loadError').style.display = 'flex';
+    document.getElementById('loadErrorDetail').textContent = e ? ('Detalle: ' + (e.message || String(e))) : '';
+    setSync('error');
+  }
 }
 
 async function saveProspectoRemote(data){
