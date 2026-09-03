@@ -84,7 +84,7 @@
 
   /* ---------- board ---------- */
   .board{
-    display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:14px;
+    display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:14px;
     padding:0 24px 40px; align-items:start;
   }
   .col{background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); min-height:200px; display:flex; flex-direction:column;}
@@ -99,6 +99,8 @@
   .col[data-stage="propuesta"] .col-dot{background:var(--lime);}
   .col[data-stage="cerrado"] .col-dot{background:var(--cilantro-text);}
   .col[data-stage="operando"] .col-dot{background:#4fc3f7;}
+  .col[data-stage="negativa"] .col-dot{background:var(--overdue);}
+  .negativa-badge{display:inline-block;background:rgba(184,80,62,0.18);color:#E8998A;font-size:10px;margin-top:4px;padding:2px 6px;border-radius:4px;}
   .juridico-badge{display:inline-block;background:var(--overdue);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;margin-top:3px;letter-spacing:.5px;}
   .col-count{font-size:11px; color:var(--dim); font-family:'IBM Plex Mono',monospace;}
   .col-body{padding:10px; display:flex; flex-direction:column; gap:8px; flex:1; min-height:60px;}
@@ -264,6 +266,10 @@
     <div class="col-head"><div class="col-title"><span class="col-dot"></span>Operando</div><div class="col-count mono" id="count-operando">0</div></div>
     <div class="col-body" id="body-operando"></div>
   </div>
+  <div class="col" data-stage="negativa">
+    <div class="col-head"><div class="col-title"><span class="col-dot"></span>Negativa</div><div class="col-count mono" id="count-negativa">0</div></div>
+    <div class="col-body" id="body-negativa"></div>
+  </div>
 </div>
 </div>
 
@@ -295,10 +301,15 @@
         <div class="field"><label>Email</label><input type="email" id="f-email" placeholder="correo@empresa.com" /></div>
       </div>
       <div class="field"><label>Etapa</label>
-        <select id="f-etapa">
+        <select id="f-etapa" onchange="toggleMotivoNegativa(this.value)">
           <option value="prospecto">Prospecto</option><option value="contactado">Contactado</option>
           <option value="propuesta">Propuesta</option><option value="cerrado">Cerrado</option><option value="operando">Operando</option>
+          <option value="negativa">Negativa</option>
         </select>
+      </div>
+      <div class="field" id="f-motivo-negativa-wrap" style="display:none;">
+        <label>Motivo de la negativa</label>
+        <input type="text" id="f-motivo-negativa" placeholder="Ej. Precio, ya tienen proveedor, espacio insuficiente..." />
       </div>
       <div class="row2">
         <div class="field"><label>Próxima acción</label><input type="text" id="f-accion" placeholder="Ej. Llamar, enviar propuesta..." /></div>
@@ -394,7 +405,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
-const STAGES = ['prospecto','contactado','propuesta','cerrado','operando'];
+const STAGES = ['prospecto','contactado','propuesta','cerrado','operando','negativa'];
 let prospectos = [];
 let activeBrand = 'all';
 let filtroEjecutivo = '', filtroFecha = '', filtroTipo = '', filtroCompromiso = '';
@@ -585,7 +596,7 @@ function filtered(){
     if(filtroFecha){
       if(filtroFecha==='hoy')       return isToday(p.fecha);
       if(filtroFecha==='semana')    return isThisWeek(p.fecha);
-      if(filtroFecha==='vencidas')  return p.etapa!=='cerrado' && p.etapa!=='operando' && daysUntil(p.fecha)!==null && daysUntil(p.fecha)<0;
+      if(filtroFecha==='vencidas')  return p.etapa!=='cerrado' && p.etapa!=='operando' && p.etapa!=='negativa' && daysUntil(p.fecha)!==null && daysUntil(p.fecha)<0;
       if(filtroFecha==='sin-fecha') return !p.fecha;
     }
     return true;
@@ -595,8 +606,8 @@ function filtered(){
 function renderStats(){
   const list = filtered();
   const total = list.length;
-  const overdue = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d<0 && p.etapa!=='cerrado' && p.etapa!=='operando'; }).length;
-  const soon = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d>=0 && d<=3 && p.etapa!=='cerrado'; }).length;
+  const overdue = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d<0 && p.etapa!=='cerrado' && p.etapa!=='operando' && p.etapa!=='negativa'; }).length;
+  const soon = list.filter(p=>{ const d=daysUntil(p.fecha); return d!==null && d>=0 && d<=3 && p.etapa!=='cerrado' && p.etapa!=='negativa'; }).length;
   const cerrados = list.filter(p=>p.etapa==='cerrado').length;
   document.getElementById('statsBar').innerHTML = `
     <div class="stat" style="border-left:3px solid var(--lime);padding-left:14px;">
@@ -618,6 +629,10 @@ function renderStats(){
     <div class="stat" style="border-left:2px solid var(--cilantro-text);padding-left:12px;">
       <div class="stat-val mono" style="font-size:15px;color:var(--cilantro-text);">${cerrados}</div>
       <div class="stat-label">Cerrado</div>
+    </div>
+    <div class="stat" style="border-left:2px solid var(--overdue);padding-left:12px;">
+      <div class="stat-val mono" style="font-size:15px;color:var(--overdue);">${list.filter(p=>p.etapa==='negativa').length}</div>
+      <div class="stat-label">Negativa</div>
     </div>
     <div class="stat warn" style="margin-left:16px;">
       <div class="stat-val mono">${overdue}</div>
@@ -648,6 +663,7 @@ function cardHTML(p){
     ${(p.compromisos&&p.compromisos.length)?`<div style="font-size:10px;color:var(--lime);margin-top:3px;">${p.compromisos.map(c=>typeof c==='object'?c.tipo:c).join(', ')}</div>`:''}
     ${(p.juridico===true||p.juridico==='true')?`<span class="juridico-badge">&#9888; Jurídico pendiente</span>`:''}
     ${p.inaug?`<div style="font-size:10px;color:var(--teal-text);margin-top:3px;">Inauguración: ${p.inaug}</div>`:''}
+    ${(p.etapa==='negativa'&&p.motivoNegativa)?`<div class="negativa-badge">✕ ${escapeHtml(p.motivoNegativa)}</div>`:''}
     ${p.accion?`<div class="card-action ${actionClass}"><span>${escapeHtml(p.accion)}</span>${fechaLbl?`<span class="mono">${fechaLbl}</span>`:''}</div>`:''}
   </div>`;
 }
@@ -659,6 +675,9 @@ document.getElementById('f-tipo').addEventListener('change', function(){
 
 function toggleEjecutivoOtro(val){
   document.getElementById('f-ejecutivo-otro').style.display = val === '__otro__' ? '' : 'none';
+}
+function toggleMotivoNegativa(val){
+  document.getElementById('f-motivo-negativa-wrap').style.display = val === 'negativa' ? '' : 'none';
 }
 function toggleLicenciadoOtro(val){
   document.getElementById('f-licenciado-otro').style.display = val === '__otro__' ? '' : 'none';
@@ -737,6 +756,8 @@ function openModal(id){
     document.getElementById('f-telefono').value = p.telefono||'';
     document.getElementById('f-email').value = p.email||'';
     document.getElementById('f-etapa').value = p.etapa||'prospecto';
+    document.getElementById('f-motivo-negativa').value = p.motivoNegativa||'';
+    toggleMotivoNegativa(p.etapa||'prospecto');
     document.getElementById('f-accion').value = p.accion||'';
     document.getElementById('f-fecha').value = parseFecha(p.fecha) || '';
     document.getElementById('f-notas').value = p.notas||'';
@@ -771,6 +792,7 @@ function openModal(id){
   }else{
     document.getElementById('modalTitle').textContent = 'Nuevo prospecto';
     document.getElementById('btnDelete').style.display = 'none';
+    toggleMotivoNegativa('prospecto');
   }
   document.getElementById('overlay').classList.add('open');
   document.getElementById('f-empresa').focus();
@@ -794,6 +816,7 @@ document.getElementById('prospectForm').addEventListener('submit', async e=>{
     telefono: document.getElementById('f-telefono').value.trim(),
     email: document.getElementById('f-email').value.trim(),
     etapa: document.getElementById('f-etapa').value,
+    motivoNegativa: document.getElementById('f-motivo-negativa').value.trim(),
     accion: document.getElementById('f-accion').value.trim(),
     fecha: document.getElementById('f-fecha').value,
     notas: document.getElementById('f-notas').value.trim(),
